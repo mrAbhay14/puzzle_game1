@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -22,17 +22,18 @@
       margin: 20px;
     }
     .tile {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background-color: #3498db;
       border-radius: 5px;
       width: 70px;
       height: 70px;
       cursor: pointer;
-      overflow: hidden;
-      position: relative;
+      background-size: 280px 280px; /* Adjusted based on the image size */
     }
-    .controls, .timer, .username-display {
+    .empty {
+      background-color: #ecf0f1;
+      cursor: default; /* Disable cursor for empty tile */
+    }
+    .controls {
       margin: 10px;
     }
     .button {
@@ -43,101 +44,45 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    .reference-image {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 150px;
-      height: auto;
-      border: 2px solid #3498db;
-      border-radius: 5px;
-    }
-    #message {
-      font-size: 1.5rem;
-      margin-top: 15px;
-      color: green;
-      display: none;
-      animation: win-animation 1s ease-in-out infinite;
-    }
-    @keyframes win-animation {
-      0%, 100% { transform: scale(1); color: green; }
-      50% { transform: scale(1.1); color: #4b0082; }
-    }
   </style>
 </head>
 <body>
   <h2>Sliding Puzzle Game</h2>
-  
-  <!-- Input field for the username -->
-  <div class="username-display">
-    <label for="username">Enter Your Name:</label>
-    <input type="text" id="username" placeholder="Your Name">
-    <button id="startGame" class="button">Start Game</button>
-  </div>
-
-  <!-- Display timer and game status messages -->
-  <div class="timer" id="timer">Time Left: 59s</div>
-  <div id="message"></div>
-  
-  <!-- Puzzle and shuffle button -->
-  <img src="/images/IMG_1134.JPG" alt="Reference Image" class="reference-image">
   <div class="puzzle-container" id="puzzle-container"></div>
   <div class="controls">
     <button class="button" onclick="shuffleTiles()">Shuffle</button>
   </div>
 
   <script>
-    const puzzleSize = 4;
+    const puzzleSize = 4; // 4x4 grid
     const tileCount = puzzleSize * puzzleSize;
-    let selectedTileIndex = null;
-    let timeLeft = 59;
-    let timer;
-    let puzzleSolved = false;
+    let emptyIndex = tileCount - 1;
 
+    // Initialize and render the puzzle
     const puzzleContainer = document.getElementById('puzzle-container');
-    const timerDisplay = document.getElementById('timer');
-    const messageDisplay = document.getElementById('message');
-    const startGameButton = document.getElementById('startGame');
-    const userNameInput = document.getElementById('username');
-    const tiles = Array.from({ length: tileCount }, (_, i) => i);
-    tiles[tileCount - 1] = null; // Last tile is empty
+    const tiles = Array.from({ length: tileCount }, (_, i) => i + 1);
+    tiles[tileCount - 1] = null; // last tile is empty
+
+    // Path to your waffle image (replace with your actual image path)
+    const imagePath = '/images/IMG_1134.JPG'; // Update this path to your image
 
     function renderPuzzle() {
       puzzleContainer.innerHTML = '';
-      tiles.forEach((index, tileIndex) => {
+      tiles.forEach((number, index) => {
         const tile = document.createElement('div');
         tile.className = 'tile';
-        if (index !== null) {
-          const row = Math.floor(index / puzzleSize);
-          const col = index % puzzleSize;
-          tile.style.backgroundImage = `url('/images/IMG_1134.JPG')`;
-          tile.style.backgroundSize = `${puzzleSize * 70}px ${puzzleSize * 70}px`;
-          tile.style.backgroundPosition = `-${col * 70}px -${row * 70}px`;
+        tile.classList.toggle('empty', number === null);
+        tile.style.backgroundImage = number ? `url(${imagePath})` : 'none';
+
+        if (number !== null) {
+          const x = (number - 1) % puzzleSize;
+          const y = Math.floor((number - 1) / puzzleSize);
+          tile.style.backgroundPosition = `-${x * 70}px -${y * 70}px`; // Adjust position based on tile index
         }
-        tile.onclick = () => handleTileClick(tileIndex);
+
+        tile.onclick = () => moveTile(index);
         puzzleContainer.appendChild(tile);
       });
-    }
-
-    function handleTileClick(index) {
-      if (selectedTileIndex === null) {
-        selectedTileIndex = index;
-      } else {
-        swapTiles(selectedTileIndex, index);
-        selectedTileIndex = null;
-      }
-    }
-
-    function swapTiles(index1, index2) {
-      if (index1 !== index2) {
-        [tiles[index1], tiles[index2]] = [tiles[index2], tiles[index1]];
-        renderPuzzle();
-        if (isSolved() && !puzzleSolved) {
-          puzzleSolved = true;
-          clearInterval(timer);
-          displayMessage("Congratulations, you won!", true);
-        }
-      }
     }
 
     function shuffleTiles() {
@@ -145,54 +90,33 @@
         const j = Math.floor(Math.random() * (i + 1));
         [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
       }
+      emptyIndex = tiles.indexOf(null);
       renderPuzzle();
     }
 
-    function isSolved() {
-      return tiles.every((tile, index) => tile === index);
-    }
-
-    function startGame() {
-      const userName = userNameInput.value.trim();
-      if (!userName) {
-        alert("Please enter your name to start the game!");
-        return;
-      }
-      userNameInput.disabled = true;
-      startGameButton.disabled = true;
-      messageDisplay.style.display = "none";
-      timeLeft = 59;
-      puzzleSolved = false;
-      shuffleTiles();
-      startTimer();
-    }
-
-    function startTimer() {
-      timerDisplay.textContent = `Time Left: ${timeLeft}s`;
-      timer = setInterval(() => {
-        timeLeft--;
-        timerDisplay.textContent = `Time Left: ${timeLeft}s`;
-        if (timeLeft <= 0 && !puzzleSolved) {
-          clearInterval(timer);
-          displayMessage("Time’s up! Better luck next time.", false);
+    function moveTile(index) {
+      if (isAdjacent(index, emptyIndex)) {
+        [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+        emptyIndex = index;
+        renderPuzzle();
+        if (isSolved()) {
+          setTimeout(() => alert("Congratulations, you've solved the puzzle!"), 100);
         }
-      }, 1000);
-    }
-
-    function displayMessage(msg, isWinner) {
-      messageDisplay.textContent = msg;
-      messageDisplay.style.display = "block";
-      if (isWinner) {
-        messageDisplay.classList.add("winner-animation");
-      } else {
-        messageDisplay.classList.remove("winner-animation");
       }
-      alert(msg); // Added alert for pop-up style message
     }
 
-    startGameButton.addEventListener("click", startGame);
+    function isAdjacent(i, j) {
+      const rowDiff = Math.abs(Math.floor(i / puzzleSize) - Math.floor(j / puzzleSize));
+      const colDiff = Math.abs((i % puzzleSize) - (j % puzzleSize));
+      return rowDiff + colDiff === 1;
+    }
 
-    renderPuzzle(); // Initial render
+    function isSolved() {
+      return tiles.slice(0, tileCount - 1).every((tile, index) => tile === index + 1);
+    }
+
+    // Initialize the puzzle on load
+    renderPuzzle();
   </script>
 </body>
 </html>
