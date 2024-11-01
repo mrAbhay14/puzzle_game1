@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -29,10 +29,10 @@
       width: 70px;
       height: 70px;
       cursor: pointer;
-      overflow: hidden; /* Hide overflow to keep image in bounds */
-      position: relative; /* Allow positioning of background */
+      overflow: hidden;
+      position: relative;
     }
-    .controls {
+    .controls, .timer, .username-display {
       margin: 10px;
     }
     .button {
@@ -47,16 +47,39 @@
       position: absolute;
       top: 20px;
       right: 20px;
-      width: 150px; /* Set desired width */
-      height: auto; /* Maintain aspect ratio */
-      border: 2px solid #3498db; /* Optional: add border */
-      border-radius: 5px; /* Optional: rounded corners */
+      width: 150px;
+      height: auto;
+      border: 2px solid #3498db;
+      border-radius: 5px;
+    }
+    #message {
+      font-size: 1.5rem;
+      margin-top: 15px;
+      color: green;
+      display: none;
+      animation: win-animation 1s ease-in-out infinite;
+    }
+    @keyframes win-animation {
+      0%, 100% { transform: scale(1); color: green; }
+      50% { transform: scale(1.1); color: #4b0082; }
     }
   </style>
 </head>
 <body>
   <h2>Sliding Puzzle Game</h2>
-  <div class="timer" id="timer">30</div>
+  
+  <!-- Input field for the username -->
+  <div class="username-display">
+    <label for="username">Enter Your Name:</label>
+    <input type="text" id="username" placeholder="Your Name">
+    <button id="startGame" class="button">Start Game</button>
+  </div>
+
+  <!-- Display timer and game status messages -->
+  <div class="timer" id="timer">Time Left: 59s</div>
+  <div id="message"></div>
+  
+  <!-- Puzzle and shuffle button -->
   <img src="/images/IMG_1134.JPG" alt="Reference Image" class="reference-image">
   <div class="puzzle-container" id="puzzle-container"></div>
   <div class="controls">
@@ -64,32 +87,33 @@
   </div>
 
   <script>
-    const puzzleSize = 4; // 4x4 grid
+    const puzzleSize = 4;
     const tileCount = puzzleSize * puzzleSize;
-    let selectedTileIndex = null; // Track the selected tile index
-    let timer; // Timer variable
-    let timeLeft = 30; // Time limit in seconds
-    const imageUrl = '/images/IMG_1134.JPG'; // Replace with the URL of your waffle image
+    let selectedTileIndex = null;
+    let timeLeft = 59;
+    let timer;
+    let puzzleSolved = false;
 
-    // Initialize and render the puzzle
     const puzzleContainer = document.getElementById('puzzle-container');
     const timerDisplay = document.getElementById('timer');
-    const tiles = Array.from({ length: tileCount }, (_, i) => i); // All tiles filled with indices
-    tiles[tileCount - 1] = null; // last tile is empty
+    const messageDisplay = document.getElementById('message');
+    const startGameButton = document.getElementById('startGame');
+    const userNameInput = document.getElementById('username');
+    const tiles = Array.from({ length: tileCount }, (_, i) => i);
+    tiles[tileCount - 1] = null; // Last tile is empty
 
     function renderPuzzle() {
       puzzleContainer.innerHTML = '';
       tiles.forEach((index, tileIndex) => {
         const tile = document.createElement('div');
         tile.className = 'tile';
-        
-        // Set the background image for the tile by slicing the main image
-        const row = Math.floor(index / puzzleSize);
-        const col = index % puzzleSize;
-        tile.style.backgroundImage = `url(${imageUrl})`;
-        tile.style.backgroundSize = `${puzzleSize * 70}px ${puzzleSize * 70}px`; // Size of the full image
-        tile.style.backgroundPosition = `-${col * 70}px -${row * 70}px`; // Position to display the correct slice
-        
+        if (index !== null) {
+          const row = Math.floor(index / puzzleSize);
+          const col = index % puzzleSize;
+          tile.style.backgroundImage = `url('/images/IMG_1134.JPG')`;
+          tile.style.backgroundSize = `${puzzleSize * 70}px ${puzzleSize * 70}px`;
+          tile.style.backgroundPosition = `-${col * 70}px -${row * 70}px`;
+        }
         tile.onclick = () => handleTileClick(tileIndex);
         puzzleContainer.appendChild(tile);
       });
@@ -97,10 +121,10 @@
 
     function handleTileClick(index) {
       if (selectedTileIndex === null) {
-        selectedTileIndex = index; // Select the first tile
+        selectedTileIndex = index;
       } else {
-        swapTiles(selectedTileIndex, index); // Swap if a second tile is selected
-        selectedTileIndex = null; // Reset selection
+        swapTiles(selectedTileIndex, index);
+        selectedTileIndex = null;
       }
     }
 
@@ -108,12 +132,10 @@
       if (index1 !== index2) {
         [tiles[index1], tiles[index2]] = [tiles[index2], tiles[index1]];
         renderPuzzle();
-        if (isSolved()) {
-          clearInterval(timer); // Stop the timer
-          const timeTaken = 30 - timeLeft; // Calculate time taken
-          setTimeout(() => alert("Congratulations, you've solved the puzzle!"), 100);
-          const userName = prompt("Enter your name:");
-          storeUserData(userName, timeTaken);
+        if (isSolved() && !puzzleSolved) {
+          puzzleSolved = true;
+          clearInterval(timer);
+          displayMessage("Congratulations, you won!", true);
         }
       }
     }
@@ -130,8 +152,47 @@
       return tiles.every((tile, index) => tile === index);
     }
 
-    // Initialize the puzzle on load
-    renderPuzzle();
+    function startGame() {
+      const userName = userNameInput.value.trim();
+      if (!userName) {
+        alert("Please enter your name to start the game!");
+        return;
+      }
+      userNameInput.disabled = true;
+      startGameButton.disabled = true;
+      messageDisplay.style.display = "none";
+      timeLeft = 59;
+      puzzleSolved = false;
+      shuffleTiles();
+      startTimer();
+    }
+
+    function startTimer() {
+      timerDisplay.textContent = `Time Left: ${timeLeft}s`;
+      timer = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = `Time Left: ${timeLeft}s`;
+        if (timeLeft <= 0 && !puzzleSolved) {
+          clearInterval(timer);
+          displayMessage("Time’s up! Better luck next time.", false);
+        }
+      }, 1000);
+    }
+
+    function displayMessage(msg, isWinner) {
+      messageDisplay.textContent = msg;
+      messageDisplay.style.display = "block";
+      if (isWinner) {
+        messageDisplay.classList.add("winner-animation");
+      } else {
+        messageDisplay.classList.remove("winner-animation");
+      }
+      alert(msg); // Added alert for pop-up style message
+    }
+
+    startGameButton.addEventListener("click", startGame);
+
+    renderPuzzle(); // Initial render
   </script>
 </body>
 </html>
