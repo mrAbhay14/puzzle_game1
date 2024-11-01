@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sliding Puzzle Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f4f4f4;
+    }
+    .puzzle-container {
+      display: grid;
+      grid-template-columns: repeat(4, 70px);
+      grid-gap: 5px;
+      margin: 20px;
+    }
+    .tile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 5px;
+      width: 70px;
+      height: 70px;
+      cursor: pointer;
+      overflow: hidden; /* Hide overflow to keep image in bounds */
+      position: relative; /* Allow positioning of background */
+    }
+    .controls {
+      margin: 10px;
+    }
+    .button {
+      padding: 10px 20px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .reference-image {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 150px; /* Set desired width */
+      height: auto; /* Maintain aspect ratio */
+      border: 2px solid #3498db; /* Optional: add border */
+      border-radius: 5px; /* Optional: rounded corners */
+    }
+  </style>
+</head>
+<body>
+  <h2>Sliding Puzzle Game</h2>
+  <div class="timer" id="timer">30</div>
+  <img src="/images/IMG_1134.JPG" alt="Reference Image" class="reference-image">
+  <div class="puzzle-container" id="puzzle-container"></div>
+  <div class="controls">
+    <button class="button" onclick="shuffleTiles()">Shuffle</button>
+  </div>
+
+  <script>
+    const puzzleSize = 4; // 4x4 grid
+    const tileCount = puzzleSize * puzzleSize;
+    let selectedTileIndex = null; // Track the selected tile index
+    let timer; // Timer variable
+    let timeLeft = 30; // Time limit in seconds
+    const imageUrl = '/images/IMG_1134.JPG'; // Replace with the URL of your waffle image
+
+    // Initialize and render the puzzle
+    const puzzleContainer = document.getElementById('puzzle-container');
+    const timerDisplay = document.getElementById('timer');
+    const tiles = Array.from({ length: tileCount }, (_, i) => i); // All tiles filled with indices
+    tiles[tileCount - 1] = null; // last tile is empty
+
+    function renderPuzzle() {
+      puzzleContainer.innerHTML = '';
+      tiles.forEach((index, tileIndex) => {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        
+        // Set the background image for the tile by slicing the main image
+        const row = Math.floor(index / puzzleSize);
+        const col = index % puzzleSize;
+        tile.style.backgroundImage = `url(${imageUrl})`;
+        tile.style.backgroundSize = `${puzzleSize * 70}px ${puzzleSize * 70}px`; // Size of the full image
+        tile.style.backgroundPosition = `-${col * 70}px -${row * 70}px`; // Position to display the correct slice
+        
+        tile.onclick = () => handleTileClick(tileIndex);
+        puzzleContainer.appendChild(tile);
+      });
+    }
+
+    function handleTileClick(index) {
+      if (selectedTileIndex === null) {
+        selectedTileIndex = index; // Select the first tile
+      } else {
+        swapTiles(selectedTileIndex, index); // Swap if a second tile is selected
+        selectedTileIndex = null; // Reset selection
+      }
+    }
+
+    function swapTiles(index1, index2) {
+      if (index1 !== index2) {
+        [tiles[index1], tiles[index2]] = [tiles[index2], tiles[index1]];
+        renderPuzzle();
+        if (isSolved()) {
+          clearInterval(timer); // Stop the timer
+          const timeTaken = 30 - timeLeft; // Calculate time taken
+          setTimeout(() => alert("Congratulations, you've solved the puzzle!"), 100);
+          const userName = prompt("Enter your name:");
+          storeUserData(userName, timeTaken);
+        }
+      }
+    }
+
+    function shuffleTiles() {
+      for (let i = tileCount - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+      }
+      renderPuzzle();
+    }
+
+    function isSolved() {
+      return tiles.every((tile, index) => tile === index);
+    }
+
+    // Initialize the puzzle on load
+    renderPuzzle();
+  </script>
+</body>
+</html>
